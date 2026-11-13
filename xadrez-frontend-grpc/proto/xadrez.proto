@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "com.xadrez.grpc";
+option java_outer_classname = "XadrezProto";
+
+service XadrezService {
+	rpc ConectarJogador (ConectarRequest) returns (ConectarResponse) {}
+	
+	rpc EnviarJogada (JogadaRequest) returns (JogadaResponse) {}
+	
+	rpc ObterEstadoDoJogo (EstadoRequest) returns (EstadoResponse) {}
+}
+
+message ConectarRequest {
+	string idJogador = 1;
+	string nomeJogador = 2;
+}
+
+message ConectarResponse {
+	string idJogador = 1;
+	string idPartida = 2;
+	string nomeJogador = 3;
+	string corPecas = 4;
+}
+
+message JogadaRequest {
+	string idJogador = 1;
+	string idPartida = 2;
+	string posicaoOrigem = 3;
+	string posicaoDestino = 4;
+}
+
+message JogadaResponse {
+	bool jogadaValida = 1;
+	string mensagemRetorno = 2;
+}
+
+message EstadoRequest {
+	string idPartida = 1;
+}
+
+message EstadoResponse {
+	string posicaoPecas = 1;
+	string turnoAtual = 2;
+	string estadoJogo = 3;
+}

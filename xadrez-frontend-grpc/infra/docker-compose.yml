@@ -1,0 +1,12 @@
+# Sobe o Envoy:  npm run proxy   (ou: docker compose -f infra/docker-compose.yml up)
+services:
+  envoy:
+    image: envoyproxy/envoy:v1.40-latest
+    container_name: envoy-xadrez
+    ports:
+      - "8080:8080"   # gRPC-Web para o navegador
+      - "9901:9901"   # painel de administração do Envoy
+    volumes:
+      - ./envoy.yaml:/etc/envoy/envoy.yaml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # necessário no Linux; inofensivo no Windows e no Mac

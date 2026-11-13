@@ -1,0 +1,65 @@
+<main class="entrada">
+  <header>
+    <h1>♞ Xadrez</h1>
+    <p class="sub">Entre numa partida online ou jogue neste computador.</p>
+  </header>
+
+  <section class="card">
+    <strong>Jogar online</strong>
+
+    <form class="form" (submit)="$event.preventDefault(); conectar()">
+      @if (salva(); as s) {
+        <p class="nota">
+          Esta aba já entrou na partida como <b>{{ s.nome }}</b>. Reconectar devolve o mesmo jogador e a mesma cor.
+        </p>
+      } @else {
+        <label class="campo">
+          Seu nome
+          <input type="text" name="nome" autocomplete="off" maxlength="15" placeholder="3 a 15 caracteres"
+                 [value]="nome()" (input)="nome.set(texto($event))">
+        </label>
+      }
+
+      <details>
+        <summary>Endereço do servidor</summary>
+        <label class="campo">
+          Endereço do proxy Envoy (não é o do servidor Java)
+          <input type="text" name="url" autocomplete="off" spellcheck="false"
+                 [value]="url()" (input)="url.set(texto($event))">
+        </label>
+        <small>
+          O navegador fala gRPC-Web com o Envoy (porta {{ portaEnvoy }}), que repassa ao servidor Java (porta 50040).
+          Em duas máquinas, use o IP de quem roda o Envoy.
+        </small>
+      </details>
+
+      @if (online.erro(); as erro) {
+        <p class="erro" role="alert">{{ erro }}</p>
+      }
+
+      <div class="linha">
+        <button type="submit" class="primario" [disabled]="conectando() || (!salva() && !nomeValido())">
+          {{ conectando() ? 'Conectando…' : salva() ? 'Reconectar' : 'Conectar' }}
+        </button>
+        @if (salva()) {
+          <button type="button" (click)="trocarJogador()">Entrar como outro jogador</button>
+        }
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <strong>Jogar neste computador</strong>
+    <p class="nota">Sem servidor: contra a IA ou duas pessoas na mesma tela.</p>
+    <button type="button" (click)="jogarLocal()">Jogar local</button>
+  </section>
+
+  <section class="card">
+    <strong>Estilo visual</strong>
+    <div id="themes">
+      @for (t of themes.themes; track t.id) {
+        <button type="button" [class.on]="themes.theme() === t.id" (click)="themes.theme.set(t.id)">{{ t.label }}</button>
+      }
+    </div>
+  </section>
+</main>

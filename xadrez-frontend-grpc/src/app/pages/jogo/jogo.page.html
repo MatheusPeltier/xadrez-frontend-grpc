@@ -1,0 +1,89 @@
+<div class="trays">
+  <app-captured-tray graveId="capM" [label]="'Capturadas por ' + game.names().w"
+                     [items]="game.captured().byWhite" [landed]="game.landedIdx()" />
+  <app-captured-tray graveId="capI" [label]="'Capturadas por ' + game.names().b"
+                     [items]="game.captured().byBlack" [landed]="game.landedIdx()" />
+</div>
+
+<div class="app">
+  <div><app-board /></div>
+
+  <div class="side">
+    <div class="card">
+      <h1>♞ Xadrez</h1>
+      <div id="status">{{ status() }}</div>
+      <div id="alert" [style.display]="game.alerts().length ? 'block' : 'none'">
+        @for (a of game.alerts(); track a) { <div>{{ a }}</div> }
+      </div>
+      @if (online.lanceRecusado(); as motivo) {
+        <p class="erro" role="alert">Jogada não aceita: {{ motivo }}</p>
+      }
+    </div>
+
+    @if (isOnline()) {
+      <div class="card online">
+        <strong>Partida online</strong>
+        @if (online.sessao(); as s) {
+          <dl>
+            <dt>Você</dt><dd>{{ s.nome }} · {{ s.cor === 'w' ? 'brancas' : 'pretas' }}</dd>
+            <dt>Partida</dt><dd><span class="ponto" [class]="online.temEstado() ? online.fase() : ''"></span>{{ faseTexto() }}</dd>
+            <dt>Servidor</dt><dd class="mono">{{ grpc.url() }}</dd>
+            <dt>Id da partida</dt><dd class="mono">{{ s.idPartida }}</dd>
+          </dl>
+        }
+        @if (online.avisoServidor(); as aviso) {
+          <p class="aviso" role="status">{{ aviso }} Tentando de novo…</p>
+        }
+        <div class="btns">
+          <button type="button" (click)="game.toggleFlip()">Girar</button>
+          <button type="button" (click)="sair()">Sair da partida</button>
+        </div>
+      </div>
+    } @else {
+      <div class="card btns">
+        <button type="button" (click)="game.newGame()">Nova partida</button>
+        <button type="button" (click)="game.undo()">Desfazer</button>
+        <button type="button" (click)="game.toggleFlip()">Girar</button>
+        <label><input type="checkbox" [checked]="game.vsAi()" (change)="onAi($event)"> Jogar contra IA</label>
+        <select aria-label="Nível da IA" (change)="onLevel($event)">
+          @for (l of levels; track l.id) {
+            <option [value]="l.id" [selected]="game.aiLevel() === l.id">{{ l.label }}</option>
+          }
+        </select>
+        <a routerLink="/" class="link">← Tela inicial (jogar online)</a>
+      </div>
+    }
+
+    <div class="card">
+      <strong>Estilo visual</strong>
+      <div id="themes">
+        @for (t of themes.themes; track t.id) {
+          <button type="button" [class.on]="themes.theme() === t.id" (click)="themes.theme.set(t.id)">{{ t.label }}</button>
+        }
+      </div>
+    </div>
+
+    <div class="card">
+      <strong>Jogadas</strong>
+      <ol id="moves">
+        @for (row of game.moveRows(); track $index) {
+          <li><span>{{ $index + 1 }}.</span><span>{{ row[0] }}</span><span>{{ row[1] }}</span></li>
+        }
+      </ol>
+    </div>
+
+    <div class="card">
+      <strong>{{ isOnline() ? 'Chamadas gRPC' : 'Chamadas simuladas' }}</strong>
+      <div id="log">@for (line of game.log(); track $index) { <div>{{ line }}</div> }</div>
+      <small>
+        @if (isOnline()) {
+          Chamadas reais ao servidor, via gRPC-Web. A consulta de estado só aparece quando algo muda.
+        } @else {
+          Modo local: nada sai do navegador. Online, cada lance vira um <code>EnviarJogada</code>.
+        }
+      </small>
+    </div>
+  </div>
+</div>
+
+<app-game-dialogs (sair)="sair()" />

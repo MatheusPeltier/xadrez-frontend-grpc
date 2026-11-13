@@ -1,0 +1,7 @@
+# Gera o TypeScript do contrato (proto/xadrez.proto) em src/app/gen.
+# Rode `npm run gen` sempre que o .proto do servidor mudar.
+version: v2
+plugins:
+  - local: protoc-gen-es
+    out: src/app/gen
+    opt: target=ts
