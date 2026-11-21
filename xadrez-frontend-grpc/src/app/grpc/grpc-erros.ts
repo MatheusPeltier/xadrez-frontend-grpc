@@ -6,9 +6,9 @@ import { Code, ConnectError } from '@connectrpc/connect';
  */
 export function mensagemDeErro(e: unknown): string {
   const err = ConnectError.from(e);
-  // o navegador nem chegou no servidor (Envoy parado, endereço errado, CORS bloqueado)
+  // o navegador nem chegou no proxy (ponte/Envoy parado, endereço errado, CORS bloqueado)
   if (/failed to fetch|networkerror|load failed|fetch failed/i.test(err.rawMessage)) {
-    return 'Não deu para falar com o servidor. Confira se o Envoy está no ar (porta 8080) e o endereço.';
+    return 'Não deu para falar com o servidor. Confira se a ponte (npm run ponte) ou o Envoy está no ar na porta 8080 e o endereço.';
   }
   switch (err.code) {
     case Code.InvalidArgument:    return err.rawMessage;                           // ex.: nome inválido
@@ -17,7 +17,7 @@ export function mensagemDeErro(e: unknown): string {
     case Code.PermissionDenied:   return err.rawMessage || 'O servidor não reconheceu este jogador.';
     case Code.Unimplemented:      return 'O servidor ainda não tem esse método.';
     case Code.DeadlineExceeded:   return 'O servidor não respondeu a tempo.';
-    case Code.Unavailable:        return 'Servidor fora do ar (o Envoy respondeu, mas não alcançou o servidor Java).';
+    case Code.Unavailable:        return 'Servidor fora do ar (o proxy respondeu, mas não alcançou o servidor Java na porta 50040).';
     default:                      return err.rawMessage || 'Erro inesperado ao falar com o servidor.';
   }
 }

@@ -174,6 +174,14 @@ export function hasLegalMove(S: GameState, col: Color): boolean {
   return generateMoves(S, col).some(m => !inCheck(applyMove(S, m, 'q'), col));
 }
 
+/**
+ * Lances que o servidor Java aceita hoje: o movimento de cada peça, sem roque, sem en passant
+ * e sem deixar o próprio rei em xeque. Usado só no modo online.
+ */
+export function serverMoves(S: GameState, col: Color): Move[] {
+  return generateMoves(S, col).filter(m => !m.castle && !m.ep && !inCheck(applyMove(S, m, 'q'), col));
+}
+
 /** Direitos de roque deduzidos da posição: rei e torre nas casas iniciais. */
 export function inferCastling(b: Board): Record<CastKey, boolean> {
   const at = (r: number, c: number, t: PieceType, col: Color) => b[r][c]?.t === t && b[r][c]?.c === col;

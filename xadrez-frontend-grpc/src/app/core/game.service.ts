@@ -4,7 +4,7 @@ import { AiLevel, chooseMove } from './chess-ai';
 import {
   Board, Color, GameState, Move, Piece, PieceType,
   applyMove, boardsEqual, findKing, findMoveBetween, generateMoves, inCheck, inferCastling,
-  initialState, missingPieces, notation, other, squareName, victimOf,
+  initialState, missingPieces, notation, other, serverMoves, squareName, victimOf,
 } from './chess-engine';
 
 export interface HistoryEntry { before: GameState; san: string; captured: Piece | null; move: Move }
@@ -21,6 +21,8 @@ export interface MoveEvent { move: Move; victim: Piece | null; victimIdx: number
  */
 export interface RemoteLink {
   myColor: Color;
+  /** true: só oferece os lances que o servidor aceita (sem roque, en passant ou rei em xeque). */
+  regrasDoServidor: boolean;
   canMove(): boolean;
   submit(move: Move): void;
 }
@@ -62,7 +64,7 @@ export class GameService {
 
   readonly selectedMoves = computed(() => {
     const sel = this.selected();
-    return sel === null ? [] : generateMoves(this.state(), this.turn()).filter(m => m.fr * 8 + m.fc === sel);
+    return sel === null ? [] : this.lancesDaVez(this.state()).filter(m => m.fr * 8 + m.fc === sel);
   });
 
   readonly checkSquares = computed(() => {
@@ -113,7 +115,7 @@ export class GameService {
     if (remote ? !remote.canMove() : this.vsAi() && this.turn() === 'b') return;
     const S = this.state(), r = idx >> 3, c = idx & 7, sel = this.selected();
     if (sel !== null) {
-      const m = generateMoves(S, S.turn).find(x => x.fr * 8 + x.fc === sel && x.tr === r && x.tc === c);
+      const m = this.lancesDaVez(S).find(x => x.fr * 8 + x.fc === sel && x.tr === r && x.tc === c);
       if (m) {
         // online: quem valida é o servidor (o .proto ainda não tem campo de promoção: Etapa 8.1)
         if (remote) { remote.submit(m); return; }
@@ -262,6 +264,11 @@ export class GameService {
   syncTurn(turn: Color | null): void {
     const S = this.state();
     if (turn && turn !== S.turn) this.state.set({ ...S, turn });
+  }
+
+  /** Local: regras livres. Online: só o que o servidor aceita, se o PartidaOnlineService pedir. */
+  private lancesDaVez(S: GameState): Move[] {
+    return this.remote()?.regrasDoServidor ? serverMoves(S, S.turn) : generateMoves(S, S.turn);
   }
 
   // ---------- IA local (só no modo local; online o adversário vem do servidor) ----------

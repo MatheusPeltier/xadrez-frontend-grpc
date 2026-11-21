@@ -8,6 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "gen": "buf generate proto",
     "proxy": "docker compose -f infra/docker-compose.yml up",
+    "ponte": "tsx tools/ponte/ponte.ts",
     "servidor-teste": "tsx tools/servidor-teste/servidor-teste.ts",
     "test": "ng test"
   },

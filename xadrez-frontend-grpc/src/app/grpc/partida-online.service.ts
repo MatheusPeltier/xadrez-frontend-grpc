@@ -1,12 +1,12 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Subscription, exhaustMap, from, retry, timer } from 'rxjs';
 import {
-  Color, Move, findKing, hasLegalMove, inCheck, other, squareName,
+  Color, Move, findKing, hasLegalMove, inCheck, other, serverMoves, squareName,
 } from '../core/chess-engine';
 import { GameOver, GameService } from '../core/game.service';
 import { EstadoResponse } from '../gen/xadrez_pb';
 import { escreverCor, lerCor, lerEstadoPartida, lerPosicaoPecas } from './formato-estado';
-import { ESPERA_APOS_ERRO_MS, INTERVALO_POLLING_MS } from './grpc.config';
+import { ESPERA_APOS_ERRO_MS, INTERVALO_POLLING_MS, SEGUIR_REGRAS_DO_SERVIDOR } from './grpc.config';
 import { mensagemDeErro, nomeDoCodigo } from './grpc-erros';
 import { XadrezGrpcService } from './xadrez-grpc.service';
 
@@ -88,7 +88,10 @@ export class PartidaOnlineService {
       const nomes: Record<Color, string> = { w: 'Adversário', b: 'Adversário' };
       nomes[cor] = sessao.nome;
       this.game.enterOnline(
-        { myColor: cor, canMove: () => this.minhaVez() && !this.enviando(), submit: m => void this.enviar(m) },
+        {
+          myColor: cor, regrasDoServidor: SEGUIR_REGRAS_DO_SERVIDOR,
+          canMove: () => this.minhaVez() && !this.enviando(), submit: m => void this.enviar(m),
+        },
         nomes,
       );
       this.game.addLog(`ConectarJogador("${nome.trim()}") ✓ ${sessao.nome} joga de ${res.corPecas}`);
@@ -170,10 +173,11 @@ export class PartidaOnlineService {
   private aplicarEstado(res: EstadoResponse): void {
     const estado = lerEstadoPartida(res.estadoJogo), turno = lerCor(res.turnoAtual);
     let aviso: string | null = null;
+    let sincronizou = false;
 
     if (res.posicaoPecas.trim()) {
       const board = lerPosicaoPecas(res.posicaoPecas);
-      if (board) this.game.syncFromServer(board, turno);
+      if (board) { this.game.syncFromServer(board, turno); sincronizou = true; }
       else aviso = `O servidor respondeu, mas "posicaoPecas" veio num formato que o front ainda não lê ` +
                    `("${abreviar(res.posicaoPecas)}"). Ajuste src/app/grpc/formato-estado.ts.`;
     } else {
@@ -190,12 +194,34 @@ export class PartidaOnlineService {
     }
 
     if (estado === 'AGUARDANDO') this.fase.set('aguardando');
-    else if (estado === 'EM_ANDAMENTO') this.fase.set('jogando');
+    else if (estado === 'EM_ANDAMENTO') {
+      this.fase.set('jogando');
+      if (sincronizou) this.verificarFimPeloFront();
+    }
     else if (estado === 'CONCLUIDA' && this.fase() !== 'concluida') {
       this.fase.set('concluida');
       this.game.setOver(this.resultadoFinal());
       this.pararPolling();                                         // estado final: não muda mais
     }
+  }
+
+  /**
+   * O servidor ainda não marca CONCLUIDA no xeque-mate (Etapa 7 do backend): sem isso, o lado em
+   * mate não teria lance aceito e a partida ficaria parada. Com as regras do servidor, o front
+   * reconhece sozinho que não há mais lance válido e encerra a tela. Se um dia o servidor mandar
+   * CONCLUIDA, o caminho normal de aplicarEstado continua valendo.
+   */
+  private verificarFimPeloFront(): void {
+    if (!SEGUIR_REGRAS_DO_SERVIDOR || this.fase() === 'concluida') return;
+    const S = this.game.state();
+    if (serverMoves(S, S.turn).length) return;
+    const fim: GameOver = inCheck(S, S.turn)
+      ? { winner: other(S.turn), reason: 'Xeque-mate' }
+      : { winner: null, reason: 'Afogamento' };
+    this.fase.set('concluida');
+    this.game.setOver(fim);
+    this.game.addLog(`Fim detectado pelo front: ${fim.reason} (o servidor ainda não marca CONCLUIDA)`);
+    this.pararPolling();
   }
 
   /**

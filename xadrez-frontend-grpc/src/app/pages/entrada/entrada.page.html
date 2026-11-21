@@ -23,13 +23,13 @@
       <details>
         <summary>Endereço do servidor</summary>
         <label class="campo">
-          Endereço do proxy Envoy (não é o do servidor Java)
+          Endereço do proxy, ponte ou Envoy (não é o do servidor Java)
           <input type="text" name="url" autocomplete="off" spellcheck="false"
                  [value]="url()" (input)="url.set(texto($event))">
         </label>
         <small>
-          O navegador fala gRPC-Web com o Envoy (porta {{ portaEnvoy }}), que repassa ao servidor Java (porta 50040).
-          Em duas máquinas, use o IP de quem roda o Envoy.
+          O navegador fala gRPC-Web com o proxy (porta {{ portaEnvoy }}), que repassa ao servidor Java (porta 50040).
+          Em duas máquinas, use o IP de quem roda o proxy.
         </small>
       </details>
 

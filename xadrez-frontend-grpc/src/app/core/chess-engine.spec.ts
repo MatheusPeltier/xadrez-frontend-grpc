@@ -1,6 +1,6 @@
 import {
   Move, applyMove, findMoveBetween, generateMoves, hasLegalMove, inCheck, initialState,
-  missingPieces, parseSquare, squareName,
+  missingPieces, parseSquare, serverMoves, squareName,
 } from './chess-engine';
 
 /** Joga uma sequência como ['e2e4', 'e7e5'] a partir da posição inicial. */
@@ -44,5 +44,16 @@ describe('chess-engine', () => {
   it('lista as peças capturadas a partir da posição', () => {
     expect(missingPieces(initialState().b)).toEqual([]);
     expect(missingPieces(jogar(['e2e4', 'd7d5', 'e4d5']).b)).toEqual([{ t: 'p', c: 'b' }]);
+  });
+
+  it('regras do servidor: sem roque e sem deixar o próprio rei em xeque', () => {
+    const roque = jogar(['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1c4', 'g8f6']);
+    expect(generateMoves(roque, 'w').some(m => m.castle)).toBe(true);
+    expect(serverMoves(roque, 'w').some(m => m.castle)).toBe(false);
+
+    const mate = jogar(['f2f3', 'e7e5', 'g2g4', 'd8h4']);
+    expect(generateMoves(mate, 'w').length).toBeGreaterThan(0);
+    expect(serverMoves(mate, 'w')).toHaveLength(0);       // xeque-mate para o servidor
+    expect(serverMoves(initialState(), 'w')).toHaveLength(20);
   });
 });

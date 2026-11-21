@@ -10,7 +10,8 @@
  *
  * Imita o que o servidor real faz/planeja: uma única partida em memória, primeiro a entrar joga
  * de brancas, reconexão pelo idJogador e os mesmos status de erro. O texto de `posicaoPecas`
- * segue a proposta PROVISÓRIA de src/app/grpc/formato-estado.ts.
+ * segue o formato do servidor Java (src/app/grpc/formato-estado.ts): vazio e turno "NENHUM"
+ * enquanto falta o segundo jogador.
  */
 import { randomUUID } from 'node:crypto';
 import http from 'node:http';
@@ -97,6 +98,9 @@ function rotas(router: ConnectRouter): void {
 
     obterEstadoDoJogo(req) {
       if (req.idPartida !== partida.id) throw new ConnectError('Partida não encontrada.', Code.NotFound);
+      if (partida.estado === 'AGUARDANDO') {                    // igual ao Java: tabuleiro vazio antes de começar
+        return { posicaoPecas: '', turnoAtual: 'NENHUM', estadoJogo: partida.estado };
+      }
       return {
         posicaoPecas: escreverPosicaoPecas(partida.jogo.b),
         turnoAtual: escreverCor(partida.jogo.turn),

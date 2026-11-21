@@ -13,7 +13,7 @@ servidor Java [`xadrezServerRpc`](https://github.com/joaoMarcosDeFreitas/xadrezS
 
 ## Rodar
 
-Requisitos: Node 20.19+, 22.12+ ou 24+. Docker só para falar com o servidor Java.
+Requisitos: Node 20.19+, 22.12+ ou 24+. Docker só se for usar o Envoy (a ponte em Node não precisa).
 
 ```bash
 npm install     # se der erro de dependências: npm install --legacy-peer-deps
@@ -25,19 +25,23 @@ Na tela de entrada dá para **jogar local** direto. Para o modo online, escolha 
 ### A. Com o servidor Java (o backend de verdade)
 
 ```
-navegador :4200 ──gRPC-Web──▶ Envoy :8080 ──gRPC──▶ servidor Java :50040
+navegador :4200 ──gRPC-Web──▶ ponte ou Envoy :8080 ──gRPC──▶ servidor Java :50040
 ```
 
 1. **Servidor:** rode a classe `Main` do `xadrezServerRpc` pela IDE. Ele imprime "Servidor rodando na porta 50040".
-2. **Proxy:** `npm run proxy` (precisa do Docker aberto). É o mesmo que
-   `docker compose -f infra/docker-compose.yml up`; a configuração está em `infra/envoy.yaml`.
+2. **Proxy:** `npm run ponte`, numa janela de terminal separada. É uma ponte em Node, sem Docker
+   (`tools/ponte/ponte.ts`). Alternativa: `npm run proxy`, que sobe o Envoy no Docker (precisa do Docker aberto;
+   a configuração está em `infra/envoy.yaml`).
 3. **Front:** `npm start` e abra `http://localhost:4200` em **duas abas**, uma por jogador.
 
-O navegador não consegue chamar o servidor Java direto, por isso o Envoy fica no meio. Nada muda no Java.
+O navegador não consegue chamar o servidor Java direto, por isso a ponte (ou o Envoy) fica no meio. Nada muda no Java.
+
+Ponte, Envoy e servidor de teste usam a mesma porta 8080: **rode só um por vez**.
 
 **Em duas máquinas:** rode `npx ng serve --host 0.0.0.0`, abra `http://<IP>:4200` na outra máquina e libere as
-portas 4200, 8080 e 50040 no firewall. O front já aponta para `http://<mesmo IP>:8080`; se o Envoy estiver em outra
-máquina, troque em "Endereço do servidor" na tela de entrada.
+portas 4200, 8080 e 50040 no firewall. O front já aponta para `http://<mesmo IP>:8080`; se o proxy estiver em outra
+máquina, troque em "Endereço do servidor" na tela de entrada. Se o Java estiver em outra máquina que a ponte, use
+`npm run ponte -- --servidor=http://<IP do Java>:50040`.
 
 ### B. Com o servidor de teste (para desenvolver o front sem o Java)
 
@@ -46,13 +50,16 @@ npm run servidor-teste              # regras livres
 npm run servidor-teste -- --estrito # recusa lance que deixa o próprio rei em xeque
 ```
 
-Ele ocupa a porta 8080 no lugar do Envoy, então não rode os dois juntos. Abra duas abas e entre com nomes
+Ele ocupa a porta 8080 no lugar da ponte ou do Envoy, então não rode os dois juntos. Abra duas abas e entre com nomes
 diferentes. Para uma partida nova, pare com Ctrl+C e rode de novo.
 
 > **O servidor de teste não é o backend do trabalho.** É um dublê em Node (`tools/servidor-teste/`) que imita o
 > contrato para o front poder ser testado. Como o enunciado proíbe IA no backend, não entregue essa pasta como
-> servidor: ela pode ser apagada sem afetar o front. O `envoy.yaml` é configuração de infraestrutura; vale
-> confirmar com o professor se ele conta como backend.
+> servidor: ela pode ser apagada sem afetar o front.
+>
+> **A ponte também não é o backend do trabalho.** Ela não tem regra de jogo nem guarda estado: só repassa as
+> chamadas, como o Envoy. O `envoy.yaml` e a ponte são infraestrutura; vale confirmar com o professor se eles
+> contam como backend.
 
 ## Comandos
 
@@ -62,32 +69,37 @@ diferentes. Para uma partida nova, pare com Ctrl+C e rode de novo.
 | `npm run build` | Build de produção em `dist/` |
 | `npm run watch` | Build de desenvolvimento refeito a cada mudança |
 | `npm test -- --watch=false` | Roda os testes uma vez (Vitest) |
+| `npm run ponte` | Ponte gRPC-Web → gRPC em Node, sem Docker (porta 8080 → 50040) |
 | `npm run proxy` | Sobe o Envoy no Docker (porta 8080 → 50040) |
 | `npm run servidor-teste` | Dublê do servidor na porta 8080 (`-- --estrito` para recusar lance que deixa o rei em xeque) |
 | `npm run gen` | Recria `src/app/gen/xadrez_pb.ts` a partir de `proto/xadrez.proto` |
 
 ## O que funciona hoje com o servidor Java
 
-Testado com a branch `desenvolvimento` (commit `c2a84be`, de 4 nov. 2026):
+Testado com a branch `desenvolvimento` (commit `ea22a65`, de 19 nov. 2026). **Os 3 métodos funcionam.**
 
-| Chamada | No servidor | No front |
-|---|---|---|
-| `ConectarJogador` | Pronto | Entra, mostra nome e cor, reconecta com F5; nome inválido e jogo cheio mostram o texto do servidor |
-| `ObterEstadoDoJogo` | Só no `.proto` (Etapa 4) | Aviso "O servidor ainda não tem esse método", tentando de novo a cada 2 s |
-| `EnviarJogada` | Método vazio (Etapa 6) | "O servidor não respondeu a tempo" depois de 5 s |
+| Chamada | No front |
+|---|---|
+| `ConectarJogador` | Entra, mostra nome e cor, reconecta com F5; nome inválido e jogo cheio mostram o texto do servidor |
+| `ObterEstadoDoJogo` | Lê o formato `casa,TIPO,COR` (ex.: `a1,TORRE,BRANCAS;b1,CAVALO,BRANCAS;...`) e atualiza o tabuleiro |
+| `EnviarJogada` | Manda origem e destino; lance recusado mostra o texto do servidor |
 
-Ou seja: **conectar já funciona de ponta a ponta; jogar depende das Etapas 4 e 6 do servidor.** Enquanto isso, o
-fluxo completo (lances, capturas, recusa, fim de jogo, reconexão) roda com o servidor de teste.
+- **Regras no modo online:** o front só oferece os lances que o servidor aceita: sem roque, sem en passant e sem
+  deixar o próprio rei em xeque. O modo local continua com regras livres.
+- **Fim de jogo:** o servidor ainda não marca `CONCLUIDA` no xeque-mate, então o front reconhece sozinho que não há
+  lance válido e mostra o fim da partida (xeque-mate ou afogamento).
+- **Promoção:** o servidor mantém o peão como peão ao chegar na última fileira.
 
 ## A combinar com o João
 
-1. **Formato de `posicaoPecas`.** O servidor ainda não definiu (Etapas 2.2, 3.6 e 11.2). O front usa uma proposta
-   provisória: o campo de peças do FEN, por exemplo `rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR`. Se o formato
-   for outro, o único arquivo a mudar é `src/app/grpc/formato-estado.ts` (e os exemplos de `formato-estado.spec.ts`).
-   `turnoAtual` e `estadoJogo` são lidos com os nomes dos enums do servidor (`BRANCAS`/`PRETAS`,
+1. **Formato de `posicaoPecas`.** Definido pelo servidor (`Tabuleiro.getPecasTabuleiro`): só as casas ocupadas,
+   como `casa,TIPO,COR` separadas por `;`, de a1 a h8, e texto vazio antes do 2º jogador. Se mudar, o único arquivo
+   a ajustar é `src/app/grpc/formato-estado.ts` (e os exemplos de `formato-estado.spec.ts`). `turnoAtual` e
+   `estadoJogo` são lidos com os nomes dos enums do servidor (`BRANCAS`/`PRETAS`/`NENHUM`,
    `AGUARDANDO`/`EM_ANDAMENTO`/`CONCLUIDA`).
-2. **Regras livres x Etapa 7.1.** O front deixa tentar qualquer lance e mostra os alertas de xeque, mas online quem
-   decide é o servidor. Se ele proibir deixar o rei em xeque, o lance volta como "Jogada não aceita".
+2. **Regras livres x regras do servidor.** Online, o front segue as regras que o servidor aceita hoje (sem roque,
+   sem en passant, sem deixar o rei em xeque). Isso é controlado por `SEGUIR_REGRAS_DO_SERVIDOR` em
+   `src/app/grpc/grpc.config.ts`: se o servidor passar a aceitar regras livres, mude para `false`.
 3. **Promoção (8.1) e resultado da partida (7.5).** Vão virar campos novos no `.proto`. Hoje o front manda só
    origem e destino, e deduz o vencedor pelo tabuleiro (`resultadoFinal` em `partida-online.service.ts`).
 4. **Nome do adversário.** O `.proto` não devolve, então aparece "Adversário".
@@ -106,15 +118,16 @@ proto/xadrez.proto               cópia idêntica do contrato do servidor
 buf.gen.yaml                     configuração do gerador de TypeScript
 infra/envoy.yaml                 proxy gRPC-Web (porta 8080 -> 50040)
 infra/docker-compose.yml         sobe o Envoy
+tools/ponte/                     ponte gRPC-Web -> gRPC sem Docker (alternativa ao Envoy)
 tools/servidor-teste/            dublê do servidor para testes (opcional)
 src/styles.css                   visual do jogo e os 8 temas
 src/app/
 ├── gen/xadrez_pb.ts             código gerado do .proto
 ├── grpc/
-│   ├── grpc.config.ts           endereço do Envoy, timeouts e intervalo do polling
+│   ├── grpc.config.ts           endereço do proxy, timeouts, polling e regras do servidor
 │   ├── xadrez-grpc.service.ts   cliente Connect-ES: conectar, enviarJogada, obterEstado
 │   ├── grpc-erros.ts            status gRPC -> mensagem para o jogador
-│   ├── formato-estado.ts        textos do servidor <-> tabuleiro (o formato provisório mora aqui)
+│   ├── formato-estado.ts        textos do servidor <-> tabuleiro (formato casa,TIPO,COR)
 │   └── partida-online.service.ts  sessão, polling, envio de lances e fim de jogo
 ├── core/
 │   ├── chess-engine.ts          regras, geração de lances e comparação de posições
@@ -148,10 +161,11 @@ npm test -- --watch=false   # formato do estado e motor de xadrez
 
 ## Problemas comuns
 
-- **"Não deu para falar com o servidor"**: o Envoy (ou o servidor de teste) não está na porta 8080, ou o endereço
-  está errado.
-- **"Servidor fora do ar"**: o Envoy respondeu, mas não alcançou o Java na porta 50040.
+- **"Não deu para falar com o servidor"**: nem a ponte, nem o Envoy, nem o servidor de teste está na porta 8080, ou
+  o endereço está errado.
+- **"Servidor fora do ar"**: o proxy (ponte ou Envoy) está no ar, mas o servidor Java não está rodando na 50040.
 - **"Jogo está cheio"**: o servidor guarda uma única partida em memória. Para outra, reinicie o servidor.
 - **Erro de módulo opcional no `npm install`** (rollup, esbuild ou buf): apague `node_modules` e
   `package-lock.json` e instale de novo.
-- **Porta 50040 diferente:** se mudar no `Main`, mude também o `port_value` em `infra/envoy.yaml`.
+- **Porta 50040 diferente:** se mudar no `Main`, rode a ponte com `-- --servidor=http://127.0.0.1:<porta>` (ou
+  mude o `port_value` em `infra/envoy.yaml`, se usar o Envoy).
