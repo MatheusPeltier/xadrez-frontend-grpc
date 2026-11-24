@@ -40,14 +40,6 @@ export class EntradaPage {
     if (await this.online.conectar(this.nome())) void this.router.navigateByUrl('/jogo');
   }
 
-  /** Esquece o id guardado nesta aba: a próxima conexão entra como um jogador novo. */
-  protected trocarJogador(): void {
-    this.online.esquecerSessao();
-    this.salva.set(null);
-    this.nome.set('');
-    this.online.erro.set(null);
-  }
-
   protected jogarLocal(): void {
     void this.router.navigateByUrl('/jogo');
   }

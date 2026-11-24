@@ -29,6 +29,7 @@ message JogadaRequest {
 	string idPartida = 2;
 	string posicaoOrigem = 3;
 	string posicaoDestino = 4;
+	string promocao = 5;
 }
 
 message JogadaResponse {
@@ -44,4 +45,5 @@ message EstadoResponse {
 	string posicaoPecas = 1;
 	string turnoAtual = 2;
 	string estadoJogo = 3;
+	string resultado = 4;
 }

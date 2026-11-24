@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file xadrez.proto.
  */
 export const file_xadrez: GenFile = /*@__PURE__*/
-  fileDesc("Cgx4YWRyZXoucHJvdG8iOQoPQ29uZWN0YXJSZXF1ZXN0EhEKCWlkSm9nYWRvchgBIAEoCRITCgtub21lSm9nYWRvchgCIAEoCSJfChBDb25lY3RhclJlc3BvbnNlEhEKCWlkSm9nYWRvchgBIAEoCRIRCglpZFBhcnRpZGEYAiABKAkSEwoLbm9tZUpvZ2Fkb3IYAyABKAkSEAoIY29yUGVjYXMYBCABKAkiZAoNSm9nYWRhUmVxdWVzdBIRCglpZEpvZ2Fkb3IYASABKAkSEQoJaWRQYXJ0aWRhGAIgASgJEhUKDXBvc2ljYW9PcmlnZW0YAyABKAkSFgoOcG9zaWNhb0Rlc3Rpbm8YBCABKAkiPwoOSm9nYWRhUmVzcG9uc2USFAoMam9nYWRhVmFsaWRhGAEgASgIEhcKD21lbnNhZ2VtUmV0b3JubxgCIAEoCSIiCg1Fc3RhZG9SZXF1ZXN0EhEKCWlkUGFydGlkYRgBIAEoCSJOCg5Fc3RhZG9SZXNwb25zZRIUCgxwb3NpY2FvUGVjYXMYASABKAkSEgoKdHVybm9BdHVhbBgCIAEoCRISCgplc3RhZG9Kb2dvGAMgASgJMrQBCg1YYWRyZXpTZXJ2aWNlEjgKD0NvbmVjdGFySm9nYWRvchIQLkNvbmVjdGFyUmVxdWVzdBoRLkNvbmVjdGFyUmVzcG9uc2UiABIxCgxFbnZpYXJKb2dhZGESDi5Kb2dhZGFSZXF1ZXN0Gg8uSm9nYWRhUmVzcG9uc2UiABI2ChFPYnRlckVzdGFkb0RvSm9nbxIOLkVzdGFkb1JlcXVlc3QaDy5Fc3RhZG9SZXNwb25zZSIAQiAKD2NvbS54YWRyZXouZ3JwY0ILWGFkcmV6UHJvdG9QAWIGcHJvdG8z");
+  fileDesc("Cgx4YWRyZXoucHJvdG8iOQoPQ29uZWN0YXJSZXF1ZXN0EhEKCWlkSm9nYWRvchgBIAEoCRITCgtub21lSm9nYWRvchgCIAEoCSJfChBDb25lY3RhclJlc3BvbnNlEhEKCWlkSm9nYWRvchgBIAEoCRIRCglpZFBhcnRpZGEYAiABKAkSEwoLbm9tZUpvZ2Fkb3IYAyABKAkSEAoIY29yUGVjYXMYBCABKAkidgoNSm9nYWRhUmVxdWVzdBIRCglpZEpvZ2Fkb3IYASABKAkSEQoJaWRQYXJ0aWRhGAIgASgJEhUKDXBvc2ljYW9PcmlnZW0YAyABKAkSFgoOcG9zaWNhb0Rlc3Rpbm8YBCABKAkSEAoIcHJvbW9jYW8YBSABKAkiPwoOSm9nYWRhUmVzcG9uc2USFAoMam9nYWRhVmFsaWRhGAEgASgIEhcKD21lbnNhZ2VtUmV0b3JubxgCIAEoCSIiCg1Fc3RhZG9SZXF1ZXN0EhEKCWlkUGFydGlkYRgBIAEoCSJhCg5Fc3RhZG9SZXNwb25zZRIUCgxwb3NpY2FvUGVjYXMYASABKAkSEgoKdHVybm9BdHVhbBgCIAEoCRISCgplc3RhZG9Kb2dvGAMgASgJEhEKCXJlc3VsdGFkbxgEIAEoCTK0AQoNWGFkcmV6U2VydmljZRI4Cg9Db25lY3RhckpvZ2Fkb3ISEC5Db25lY3RhclJlcXVlc3QaES5Db25lY3RhclJlc3BvbnNlIgASMQoMRW52aWFySm9nYWRhEg4uSm9nYWRhUmVxdWVzdBoPLkpvZ2FkYVJlc3BvbnNlIgASNgoRT2J0ZXJFc3RhZG9Eb0pvZ28SDi5Fc3RhZG9SZXF1ZXN0Gg8uRXN0YWRvUmVzcG9uc2UiAEIgCg9jb20ueGFkcmV6LmdycGNCC1hhZHJlelByb3RvUAFiBnByb3RvMw");
 
 /**
  * @generated from message ConectarRequest
@@ -89,6 +89,11 @@ export type JogadaRequest = Message<"JogadaRequest"> & {
    * @generated from field: string posicaoDestino = 4;
    */
   posicaoDestino: string;
+
+  /**
+   * @generated from field: string promocao = 5;
+   */
+  promocao: string;
 };
 
 /**
@@ -155,6 +160,11 @@ export type EstadoResponse = Message<"EstadoResponse"> & {
    * @generated from field: string estadoJogo = 3;
    */
   estadoJogo: string;
+
+  /**
+   * @generated from field: string resultado = 4;
+   */
+  resultado: string;
 };
 
 /**

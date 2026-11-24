@@ -22,7 +22,8 @@ export interface MoveEvent { move: Move; victim: Piece | null; victimIdx: number
 export interface RemoteLink {
   myColor: Color;
   canMove(): boolean;
-  submit(move: Move): void;
+  /** `promo`: peça escolhida quando o lance promove um peão. */
+  submit(move: Move, promo?: PieceType): void;
 }
 
 const AI_DELAY = 1500;
@@ -115,9 +116,9 @@ export class GameService {
     if (sel !== null) {
       const m = generateMoves(S, S.turn).find(x => x.fr * 8 + x.fc === sel && x.tr === r && x.tc === c);
       if (m) {
-        // online: quem valida é o servidor (o .proto ainda não tem campo de promoção: Etapa 8.1)
-        if (remote) { remote.submit(m); return; }
+        // promoção: pergunta a peça antes (online, quem valida o lance depois é o servidor)
         if (m.promo) { this.pendingPromo.set(m); return; }
+        if (remote) { remote.submit(m); return; }
         this.play(m);
         return;
       }
@@ -130,6 +131,8 @@ export class GameService {
     const m = this.pendingPromo();
     if (!m) return;
     this.pendingPromo.set(null);
+    const remote = this.remote();
+    if (remote) { remote.submit(m, t); return; }
     this.play(m, t);
   }
 

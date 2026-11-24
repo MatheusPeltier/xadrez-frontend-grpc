@@ -31,10 +31,10 @@ export class XadrezGrpcService {
     return this.client.conectarJogador({ idJogador, nomeJogador }, { timeoutMs: TIMEOUT_CONECTAR_MS });
   }
 
-  /** EnviarJogada: posições em texto, como "e2" e "e4". */
-  enviarJogada(idJogador: string, idPartida: string, origem: string, destino: string) {
+  /** EnviarJogada: posições em texto, como "e2" e "e4". `promocao`: RAINHA, TORRE, BISPO ou CAVALO (vazio = sem promoção). */
+  enviarJogada(idJogador: string, idPartida: string, origem: string, destino: string, promocao = '') {
     return this.client.enviarJogada(
-      { idJogador, idPartida, posicaoOrigem: origem, posicaoDestino: destino },
+      { idJogador, idPartida, posicaoOrigem: origem, posicaoDestino: destino, promocao },
       { timeoutMs: TIMEOUT_JOGADA_MS },
     );
   }

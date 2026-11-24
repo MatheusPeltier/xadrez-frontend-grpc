@@ -1,11 +1,9 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Subscription, exhaustMap, from, retry, timer } from 'rxjs';
-import {
-  Color, Move, findKing, hasLegalMove, inCheck, other, squareName,
-} from '../core/chess-engine';
+import { Color, Move, PieceType, squareName } from '../core/chess-engine';
 import { GameOver, GameService } from '../core/game.service';
 import { EstadoResponse } from '../gen/xadrez_pb';
-import { escreverCor, lerCor, lerEstadoPartida, lerPosicaoPecas } from './formato-estado';
+import { escreverCor, escreverPromocao, lerCor, lerEstadoPartida, lerPosicaoPecas } from './formato-estado';
 import { ESPERA_APOS_ERRO_MS, INTERVALO_POLLING_MS } from './grpc.config';
 import { mensagemDeErro, nomeDoCodigo } from './grpc-erros';
 import { XadrezGrpcService } from './xadrez-grpc.service';
@@ -88,7 +86,7 @@ export class PartidaOnlineService {
       const nomes: Record<Color, string> = { w: 'Adversário', b: 'Adversário' };
       nomes[cor] = sessao.nome;
       this.game.enterOnline(
-        { myColor: cor, canMove: () => this.minhaVez() && !this.enviando(), submit: m => void this.enviar(m) },
+        { myColor: cor, canMove: () => this.minhaVez() && !this.enviando(), submit: (m, promo) => void this.enviar(m, promo) },
         nomes,
       );
       this.game.addLog(`ConectarJogador("${nome.trim()}") ✓ ${sessao.nome} joga de ${res.corPecas}`);
@@ -115,14 +113,15 @@ export class PartidaOnlineService {
   }
 
   /** EnviarJogada. O tabuleiro não muda aqui: muda quando o servidor devolver a nova posição. */
-  private async enviar(m: Move): Promise<void> {
+  private async enviar(m: Move, promo?: PieceType): Promise<void> {
     const s = this.sessao();
     if (!s || this.enviando()) return;
     const origem = squareName(m.fr, m.fc), destino = squareName(m.tr, m.tc);
+    const promocao = m.promo ? escreverPromocao(promo ?? 'q') : '';
     this.enviando.set(true);
     this.lanceRecusado.set(null);
     try {
-      const res = await this.grpc.enviarJogada(s.idJogador, s.idPartida, origem, destino);
+      const res = await this.grpc.enviarJogada(s.idJogador, s.idPartida, origem, destino, promocao);
       if (res.jogadaValida) {
         this.game.addLog(`EnviarJogada(${origem}→${destino}) ✓ ${res.mensagemRetorno}`.trim());
         await this.consultarEstado().catch(() => { /* o polling tenta de novo e mostra o erro */ });
@@ -193,29 +192,26 @@ export class PartidaOnlineService {
     else if (estado === 'EM_ANDAMENTO') this.fase.set('jogando');
     else if (estado === 'CONCLUIDA' && this.fase() !== 'concluida') {
       this.fase.set('concluida');
-      this.game.setOver(this.resultadoFinal());
+      this.game.setOver(this.resultadoFinal(res.resultado));
       this.pararPolling();                                         // estado final: não muda mais
     }
   }
 
-  /**
-   * O .proto ainda não traz o resultado da partida (Etapa 7.5 do servidor), então o front
-   * deduz pelo tabuleiro. Quando o campo novo existir, basta ler dele aqui.
-   */
-  private resultadoFinal(): GameOver {
-    const S = this.game.state();
-    for (const cor of ['w', 'b'] as Color[]) {
-      if (!findKing(S, cor)) return { winner: other(cor), reason: 'Rei capturado' };
+  /** Traduz o campo `resultado` do servidor (enum Resultado) para o aviso de fim de jogo. */
+  private resultadoFinal(resultado: string): GameOver {
+    switch (resultado.trim().toUpperCase()) {
+      case 'XEQUE_MATE_BRANCAS': return { winner: 'w', reason: 'Xeque-mate' };
+      case 'XEQUE_MATE_PRETAS': return { winner: 'b', reason: 'Xeque-mate' };
+      case 'EMPATE_AFOGAMENTO': return { winner: null, reason: 'Empate por afogamento' };
+      case 'EMPATE_MATERIAL_INSUFICIENTE': return { winner: null, reason: 'Empate por material insuficiente' };
+      case 'EMPATE_50_LANCES': return { winner: null, reason: 'Empate pela regra dos 50 lances' };
+      case 'EMPATE_REPETICAO': return { winner: null, reason: 'Empate por repetição de posição' };
+      default:
+        return {
+          winner: null, title: 'Partida concluída',
+          reason: resultado.trim() ? `Resultado: ${abreviar(resultado)}` : 'O servidor encerrou a partida.',
+        };
     }
-    if (!hasLegalMove(S, S.turn)) {
-      return inCheck(S, S.turn)
-        ? { winner: other(S.turn), reason: 'Xeque-mate' }
-        : { winner: null, reason: 'Afogamento' };
-    }
-    return {
-      winner: null, title: 'Partida concluída',
-      reason: 'O servidor encerrou a partida. O resultado ainda não vem no .proto.',
-    };
   }
 
   private registrarErroDeConsulta(e: unknown): void {

@@ -9,6 +9,7 @@
     "gen": "buf generate proto",
     "proxy": "docker compose -f infra/docker-compose.yml up",
     "servidor-teste": "tsx tools/servidor-teste/servidor-teste.ts",
+    "jogar": "tsx tools/jogar-cli/jogar.ts",
     "test": "ng test"
   },
   "private": true,

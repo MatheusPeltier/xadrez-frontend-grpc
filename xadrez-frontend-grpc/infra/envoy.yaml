@@ -53,6 +53,8 @@ static_resources:
     - name: xadrez_server
       connect_timeout: 0.25s
       type: logical_dns
+      # só IPv4: host.docker.internal também resolve para um IPv6 que o container não alcança
+      dns_lookup_family: V4_ONLY
       typed_extension_protocol_options:
         envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
           "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions

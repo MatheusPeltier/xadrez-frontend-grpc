@@ -41,9 +41,6 @@
         <button type="submit" class="primario" [disabled]="conectando() || (!salva() && !nomeValido())">
           {{ conectando() ? 'Conectando…' : salva() ? 'Reconectar' : 'Conectar' }}
         </button>
-        @if (salva()) {
-          <button type="button" (click)="trocarJogador()">Entrar como outro jogador</button>
-        }
       </div>
     </form>
   </section>

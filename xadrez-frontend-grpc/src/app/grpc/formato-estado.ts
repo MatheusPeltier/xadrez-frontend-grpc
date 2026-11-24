@@ -3,21 +3,18 @@ import { Board, Color, Piece, PieceType } from '../core/chess-engine';
 /**
  * Tradução dos TEXTOS do EstadoResponse (posicaoPecas, turnoAtual, estadoJogo).
  *
- * ┌──────────────────────────────────────────────────────────────────────────────────┐
- * │ ATENÇÃO: o formato de `posicaoPecas` AINDA NÃO FOI DEFINIDO pelo servidor        │
- * │ (Etapas 2.2, 3.6 e 11.2 do backend). O que está aqui é uma PROPOSTA provisória.  │
- * │ Quando o formato for combinado com o João, este é o ÚNICO arquivo a ajustar:     │
- * │ reescreva `lerPosicaoPecas` (e `escreverPosicaoPecas`, usado só pelo servidor de │
- * │ teste). O resto do front trabalha com a matriz `Board`.                          │
- * └──────────────────────────────────────────────────────────────────────────────────┘
- *
- * Proposta: o campo de peças da notação FEN, padrão do xadrez.
- *   - 8 fileiras separadas por "/", da 8ª (topo, lado das pretas) até a 1ª;
- *   - letra maiúscula = peça branca, minúscula = preta:
- *       P peão · N cavalo · B bispo · R torre · Q rainha · K rei
- *   - número = quantidade de casas vazias seguidas.
- * Posição inicial: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
+ * Formato de `posicaoPecas` definido pelo servidor (Tabuleiro.getPecasTabuleiro): uma lista de
+ * "casa,TIPO,COR" separada por ";". Casa vazia não entra.
+ *   Exemplo: "a1,TORRE,BRANCAS;b1,CAVALO,BRANCAS;e8,REI,PRETAS"
+ *   TIPO: PEAO, TORRE, CAVALO, BISPO, RAINHA, REI · COR: BRANCAS, PRETAS
+ * Este é o ÚNICO arquivo que conhece esse formato; o resto do front trabalha com a matriz `Board`
+ * (linha 0 = 8ª fileira, coluna 0 = coluna "a").
  */
+
+/** Nome da peça de promoção no formato do servidor (RAINHA, TORRE, BISPO, CAVALO). */
+export function escreverPromocao(tipo: PieceType): string {
+  return NOMES_TIPO[tipo];
+}
 
 export type EstadoPartida = 'AGUARDANDO' | 'EM_ANDAMENTO' | 'CONCLUIDA';
 
@@ -37,37 +34,41 @@ export function lerEstadoPartida(texto: string): EstadoPartida | null {
   return t === 'AGUARDANDO' || t === 'EM_ANDAMENTO' || t === 'CONCLUIDA' ? t : null;
 }
 
+const TIPOS: Record<string, PieceType> = {
+  PEAO: 'p', TORRE: 'r', CAVALO: 'n', BISPO: 'b', RAINHA: 'q', REI: 'k',
+};
+const NOMES_TIPO: Record<PieceType, string> = {
+  p: 'PEAO', r: 'TORRE', n: 'CAVALO', b: 'BISPO', q: 'RAINHA', k: 'REI',
+};
+
 /** Texto do servidor -> matriz 8x8 (linha 0 = 8ª fileira). Devolve null se não reconhecer o formato. */
 export function lerPosicaoPecas(texto: string): Board | null {
-  const fileiras = texto.trim().split(/\s+/)[0].split('/');
-  if (fileiras.length !== 8) return null;
-  const board: Board = [];
-  for (const fileira of fileiras) {
-    const linha: (Piece | null)[] = [];
-    for (const ch of fileira) {
-      if (ch >= '1' && ch <= '8') {
-        for (let i = 0; i < Number(ch); i++) linha.push(null);
-      } else {
-        const t = ch.toLowerCase();
-        if (!'pnbrqk'.includes(t)) return null;
-        linha.push({ t: t as PieceType, c: ch === t ? 'b' : 'w' });
-      }
-    }
-    if (linha.length !== 8) return null;
-    board.push(linha);
+  const board: Board = Array.from({ length: 8 }, () => Array<Piece | null>(8).fill(null));
+  const t = texto.trim();
+  if (!t) return board;
+  for (const item of t.split(';')) {
+    const partes = item.trim().split(',');
+    if (partes.length !== 3) return null;
+    const casa = /^([a-h])([1-8])$/.exec(partes[0].trim().toLowerCase());
+    const tipo = TIPOS[partes[1].trim().toUpperCase()];
+    const cor = lerCor(partes[2]);
+    if (!casa || !tipo || !cor) return null;
+    const col = casa[1].charCodeAt(0) - 97;
+    const lin = 8 - Number(casa[2]);
+    if (board[lin][col]) return null;
+    board[lin][col] = { t: tipo, c: cor };
   }
   return board;
 }
 
 /** Caminho inverso de `lerPosicaoPecas`. No projeto, só o servidor de teste usa. */
 export function escreverPosicaoPecas(board: Board): string {
-  return board.map(linha => {
-    let out = '', vazias = 0;
-    for (const p of linha) {
-      if (!p) { vazias++; continue; }
-      if (vazias) { out += vazias; vazias = 0; }
-      out += p.c === 'w' ? p.t.toUpperCase() : p.t;
+  const itens: string[] = [];
+  for (let l = 7; l >= 0; l--) {
+    for (let c = 0; c < 8; c++) {
+      const p = board[l][c];
+      if (p) itens.push(`${String.fromCharCode(97 + c)}${8 - l},${NOMES_TIPO[p.t]},${escreverCor(p.c)}`);
     }
-    return out + (vazias || '');
-  }).join('/');
+  }
+  return itens.join(';');
 }
